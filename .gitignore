@@ -1,0 +1,85 @@
+# ====== .NET 构建产物 ======
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+*.exe
+*.exe.config
+*.deps.json
+*.runtimeconfig.json
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.AssemblyInfoInputs.cache
+*.AssemblyInfo.cs
+*.CoreCompileInputs.cache
+*.Up2Date
+
+# ====== NuGet ======
+packages/
+*.nupkg
+*.snupkg
+# 保留 packages.config，忽略自动还原的包目录
+**/[Pp]ackages/*
+!**/[Pp]ackages/repositories.config
+
+# ====== Visual Studio ======
+.vs/
+*.sln.docstates
+*.userosscache
+*.userprefs
+*.VC.db
+*.VC.opendb
+*.dbmdl
+*.jfm
+*.psess
+*.vsp
+*.vspx
+*.sap
+*.e2e
+*.vspscc
+*.vssscc
+*.vsscc
+/build/
+
+# ====== Rider / JetBrains ======
+.idea/
+*.sln.iml
+*.DotSettings.user
+
+# ====== VS Code ======
+.vscode/
+
+# ====== Windows ======
+Thumbs.db
+Desktop.ini
+
+# ====== macOS ======
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# ====== Linux ======
+*~
+.directory
+
+# ====== 测试 ======
+TestResults/
+*.trx
+*.coverage
+.coverage/
+
+# ====== 发布 ======
+publish/
+*.pubxml
+*.azurePubxml
+PublishProfiles/
+
+# ====== 其他 ======
+*.log
+*.tmp
+*.swp
+*.bak

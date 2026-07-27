@@ -1,0 +1,107 @@
+<!--
+    DeviceCard.xaml — 设备列表项 自定义用户控件
+    封装设备名称、地址、连接状态指示灯、连/断按钮
+-->
+<UserControl x:Class="DataMonitor.Controls.DeviceCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:DataMonitor.Converters">
+
+    <!-- 此控件内部使用的转换器 -->
+    <UserControl.Resources>
+        <conv:BoolToBrushConverter x:Key="BoolToBrush"/>
+        <conv:BoolInvertConverter x:Key="BoolInvert"/>
+    </UserControl.Resources>
+
+    <Border Background="#F8F9FB" CornerRadius="6"
+            Padding="10" Margin="0,0,0,6" Cursor="Hand"
+            BorderBrush="#E8ECF1" BorderThickness="1"
+            MouseLeftButtonDown="OnClick">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 第1行：状态指示灯 + 设备名称 -->
+            <StackPanel Orientation="Horizontal">
+                <!-- 连接状态指示灯：绿色=已连接，红色=未连接 -->
+                <Ellipse Width="9" Height="9" Margin="0,0,6,0" VerticalAlignment="Center">
+                    <Ellipse.Fill>
+                        <SolidColorBrush Color="{Binding IsConnected, Converter={StaticResource BoolToBrush}}"/>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold"
+                           FontSize="13" Foreground="#2C3E50"/>
+            </StackPanel>
+
+            <!-- 第2行：IP:Port -->
+            <TextBlock Grid.Row="1" Text="{Binding Address}"
+                       FontSize="11" Foreground="#95A5A6" Margin="15,2,0,0"/>
+
+            <!-- 第3行：状态文字 + 连/断按钮 -->
+            <Grid Grid.Row="2" Margin="15,5,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding StatusText}" FontSize="10"
+                           Foreground="{Binding IsConnected, Converter={StaticResource BoolToBrush}}"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <!-- 连接按钮 — 仅在未连接时可点击 -->
+                    <Button Content="连" Width="38" Height="25" FontSize="10"
+                            Command="{Binding ConnectCommand}"
+                            IsEnabled="{Binding IsConnected, Converter={StaticResource BoolInvert}}"
+                            Background="#27AE60" Foreground="White"
+                            BorderThickness="0" Cursor="Hand" Margin="0,0,3,0">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="4" Padding="6,3">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#219A52"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#B0BEC5"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- 断开按钮 — 仅在已连接时可点击 -->
+                    <Button Content="断" Width="38" Height="25" FontSize="10"
+                            Command="{Binding DisconnectCommand}"
+                            IsEnabled="{Binding IsConnected}"
+                            Background="#E74C3C" Foreground="White"
+                            BorderThickness="0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="4" Padding="6,3">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#D44235"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#B0BEC5"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

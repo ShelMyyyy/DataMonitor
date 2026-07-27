@@ -1,0 +1,81 @@
+<!--
+    ChannelCard.xaml — 数据通道卡片 自定义用户控件 (UserControl)
+    
+    【什么是 UserControl？】
+    UserControl 是 WPF 中一种可复用的 UI 组合控件。它像一个"迷你窗口"：
+    - 有自己的 XAML 布局和代码后置逻辑
+    - 封装了内部结构和行为，对外通过依赖属性暴露接口
+    - 可以在任意位置像普通控件一样复用：<local:ChannelCard DataContext="{Binding}"/>
+    
+    【与自定义控件 (CustomControl) 的区别】
+    - UserControl：XAML+CS 直接组合，适合界面片段复用 ★当前用法
+    - CustomControl：继承 Control 基类，用 ControlTemplate 和 Style 定义外观，
+      适合需要主题切换、模板化、高度可配置的场景
+    
+    【本控件职责】
+    展示一个数据通道的：标签 + 实时数值 + 单位 + LiveCharts2 折线图（含 XY 坐标轴）
+-->
+<UserControl x:Class="DataMonitor.Controls.ChannelCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
+
+    <!-- UserControl 自身的资源字典：定义此控件内部使用的转换器 -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="B2V"/>
+    </UserControl.Resources>
+    
+    <Border Background="#F8F9FB" CornerRadius="6" Padding="12"
+            BorderBrush="#E8ECF1" BorderThickness="1" Margin="0,0,0,8">
+        <Grid>
+            <Grid.RowDefinitions>
+                <!-- 行0：标题行 — 复选框 + 标签 + 数值 + 单位（始终可见） -->
+                <RowDefinition Height="Auto"/>
+                <!-- 行1：LiveCharts2 折线图（复选框控制显隐） -->
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ====== 标题行 —— 始终可见 ====== -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- 复选框：控制下方图表的显示/隐藏 -->
+                <CheckBox Grid.Column="0"
+                          IsChecked="{Binding IsChartVisible}" 
+                          VerticalAlignment="Center" Margin="0,0,8,0"
+                          ToolTip="显示/隐藏折线图"/>
+                
+                <!-- 通道信息：标签名 + 实时数值 + 单位 -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- 通道标签，如"温度" -->
+                    <TextBlock Text="{Binding Label}"
+                               FontSize="14" FontWeight="SemiBold"
+                               Foreground="#2C3E50" VerticalAlignment="Center"/>
+                    <TextBlock Text="  " FontSize="14"/>
+                    <!-- 实时数值，大字橙色突出显示 -->
+                    <TextBlock Text="{Binding DisplayValue}"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="#E65100" VerticalAlignment="Center"/>
+                    <!-- 单位，如"°C" -->
+                    <TextBlock Text="{Binding Unit, StringFormat=' {0}'}"
+                               FontSize="12" Foreground="#95A5A6"
+                               VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ====== LiveCharts2 折线图（含 XY 坐标轴） ====== -->
+            <lvc:CartesianChart Grid.Row="1"
+                                Series="{Binding ChartSeries}"
+                                XAxes="{Binding XAxes}"
+                                YAxes="{Binding YAxes}"
+                                Height="100" Margin="0,8,0,0"
+                                Visibility="{Binding IsChartVisible, 
+                                    Converter={StaticResource B2V}}"
+                                TooltipPosition="Hidden"
+                                ZoomMode="None"/>
+        </Grid>
+    </Border>
+</UserControl>

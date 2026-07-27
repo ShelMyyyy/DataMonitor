@@ -1,0 +1,10 @@
+{
+  "pluginName": "DefaultDevice",
+  "pluginAssembly": "DataMonitor.Plugins.Default.dll",
+  "pluginType": "DataMonitor.Plugins.Default.DefaultDevicePlugin",
+  "connectionSettings": {
+    "ipAddress": "127.0.0.1",
+    "port": 8888,
+    "receiveBufferSize": 4096
+  }
+}

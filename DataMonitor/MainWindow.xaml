@@ -1,0 +1,356 @@
+<Window x:Class="DataMonitor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DataMonitor"
+        xmlns:vm="clr-namespace:DataMonitor.ViewModels"
+        xmlns:conv="clr-namespace:DataMonitor.Converters"
+        xmlns:controls="clr-namespace:DataMonitor.Controls"
+        mc:Ignorable="d"
+        Title="TCP设备上位机" Height="720" Width="1100"
+        MinHeight="500" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="#F0F2F5">
+
+    <Window.Resources>
+        <conv:BoolToBrushConverter x:Key="BoolToBrush"/>
+        <conv:StatusToBrushConverter x:Key="StatusToBrush"/>
+        <conv:BoolInvertConverter x:Key="BoolInvert"/>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:BoolToVisibilityInvertConverter x:Key="BoolToVisInvert"/>
+        <conv:HasItemsConverter x:Key="HasItems"/>
+
+        <!-- 通道可见性：IsVisible=true → Visible -->
+        <BooleanToVisibilityConverter x:Key="B2V"/>
+
+        <!-- 圆角按钮样式 -->
+        <Style x:Key="PrimaryBtn" TargetType="Button">
+            <Setter Property="Background" Value="#4A90D9"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#3A7BC8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#B0BEC5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SmallBtn" TargetType="Button">
+            <Setter Property="Background" Value="#5C6BC0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4959B5"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#B0BEC5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <!-- 主布局：三列 + 底栏 -->
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="*" MinWidth="280"/>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="300"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ====== 左：设备列表 ====== -->
+            <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="12"
+                    BorderBrush="#E0E0E0" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Margin="0,0,0,10">
+                        <TextBlock Text="硬件设备" FontSize="15" FontWeight="SemiBold" Foreground="#1A1A2E"/>
+                        <Button Content="扫描设备" Command="{Binding ScanCommand}"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource BoolInvert}}"
+                                Style="{StaticResource PrimaryBtn}" Margin="0,8,0,0"/>
+                        <TextBlock Text="正在扫描..." Foreground="#888" FontSize="11"
+                                   Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"
+                                   Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Devices}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:DeviceCard DataContext="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                          HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- ====== 中：实时数据 + 图表 ====== -->
+            <Border Grid.Column="2" Background="White" CornerRadius="8" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="实时数据" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#1A1A2E" Margin="0,0,0,10"/>
+
+                    <!-- 未选设备提示 -->
+                    <TextBlock Grid.Row="1" Text="请在左侧选择一台设备并连接"
+                               Foreground="#BDC3C7" FontSize="14" HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Visibility="{Binding DataChannels.Count, Converter={StaticResource HasItems}, ConverterParameter=invert}"/>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding DataChannels}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:ChannelCard DataContext="{Binding}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Grid.Row="2" Text="{Binding LastUpdateTime}"
+                               FontSize="10" Foreground="#BDC3C7" Margin="0,6,0,0"/>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="3" Width="6" Background="Transparent"
+                          HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- ====== 右：设备参数 ====== -->
+            <Border Grid.Column="4" Background="White" CornerRadius="8" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="设备参数" FontSize="15" FontWeight="SemiBold" Foreground="#1A1A2E"/>
+                        <Button Content="读取全部" Style="{StaticResource SmallBtn}"
+                                Margin="12,0,0,0"
+                                IsEnabled="{Binding SelectedDevice.IsConnected}"
+                                Command="{Binding DataContext.ReadAllCommand,
+                                RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    </StackPanel>
+
+                    <Separator Grid.Row="1" Background="#ECF0F1" Margin="0,0,0,8"/>
+
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Parameters}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#F8F9FB" Padding="10" CornerRadius="6"
+                                            Margin="0,0,0,6" BorderBrush="#E8ECF1" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                           FontSize="13" Foreground="#2C3E50"/>
+                                                <TextBlock Text=" = " FontSize="13" Foreground="#7F8C8D"/>
+                                                <TextBlock Text="{Binding DisplayValue}" FontSize="14"
+                                                           Foreground="#E65100" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding Unit, StringFormat=' {0}'}"
+                                                           FontSize="11" Foreground="#95A5A6"
+                                                           VerticalAlignment="Bottom"/>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="1" Text="{Binding Description}"
+                                                       FontSize="10" Foreground="#95A5A6" Margin="0,3,0,6"/>
+
+                                            <Grid Grid.Row="2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="新值:" FontSize="11"
+                                                           VerticalAlignment="Center" Margin="0,0,5,0"
+                                                           Foreground="#7F8C8D"/>
+                                                <TextBox Grid.Column="1"
+                                                         Text="{Binding EditValue, UpdateSourceTrigger=PropertyChanged}"
+                                                         FontSize="11" Padding="4"
+                                                         Width="70" HorizontalAlignment="Left"
+                                                         Style="{StaticResource {x:Type TextBox}}"/>
+                                                <Button Grid.Column="2" Content="读取" Width="45" Height="26"
+                                                        Command="{Binding ReadCommand}" FontSize="10"
+                                                        IsEnabled="{Binding DataContext.SelectedDevice.IsConnected,
+                                                        RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        Background="#27AE60" Foreground="White"
+                                                        BorderThickness="0" Cursor="Hand" Margin="5,0">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    CornerRadius="4" Padding="6,3">
+                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#219A52"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter Property="Background" Value="#B0BEC5"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                                <Button Grid.Column="3" Content="写入" Width="45" Height="26"
+                                                        Command="{Binding WriteCommand}" FontSize="10"
+                                                        IsEnabled="{Binding DataContext.SelectedDevice.IsConnected,
+                                                        RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        Background="#E67E22" Foreground="White"
+                                                        BorderThickness="0" Cursor="Hand">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    CornerRadius="4" Padding="6,3">
+                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#D35400"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter Property="Background" Value="#B0BEC5"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ====== 底栏：通讯日志 (默认隐藏) ====== -->
+        <Border Grid.Row="1" Margin="0,8,0,0"
+                Visibility="{Binding IsLogVisible, Converter={StaticResource BoolToVis}}"
+                Background="White" CornerRadius="8" Padding="12" Height="160">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <TextBlock Text="通讯日志" FontSize="14" FontWeight="SemiBold" Foreground="#1A1A2E"/>
+                    <Button Content="清空" Width="50" Height="24" Margin="10,0,0,0"
+                            Background="#95A5A6" Foreground="White" BorderThickness="0"
+                            FontSize="10" Cursor="Hand" Command="{Binding ClearLogCommand}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="4" Padding="6,3">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#7F8C8D"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button Content="✕" Width="28" Height="24" Margin="6,0,0,0"
+                            Background="#E74C3C" Foreground="White" BorderThickness="0"
+                            FontSize="12" Cursor="Hand" Command="{Binding ToggleLogCommand}"
+                            ToolTip="关闭日志">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="4" Padding="4,3">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#D44235"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto">
+                    <TextBox Text="{Binding LogText, Mode=OneWay}" FontFamily="Consolas"
+                             FontSize="10" IsReadOnly="True" TextWrapping="NoWrap"
+                             Background="#FAFBFC" BorderThickness="0"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- 日志切换按钮（底栏隐藏时显示在右下角） -->
+        <Button Grid.Row="1" Content="📋 日志" Style="{StaticResource SmallBtn}"
+                Margin="0,8,0,0" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Visibility="{Binding IsLogVisible, Converter={StaticResource BoolToVisInvert}}"
+                Command="{Binding ToggleLogCommand}"/>
+    </Grid>
+</Window>
