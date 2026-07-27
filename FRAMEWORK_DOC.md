@@ -373,6 +373,154 @@ dotnet run --no-build --project DataMonitor.LowerComputer -- 8888 8889:temp 8890
 | 采样间隔 | 1000ms | 1500ms | 500ms |
 | 报警阈值 | 95°C | 75°C | — |
 
+### 7.3 添加新设备类型（完整流程）
+
+以添加一个**"流量监测仪"**为例，假设帧头 `0xDD 0x88`，校验算法 CRC8，端口 8891，数据通道为"流量+状态"。
+
+**第1步：定义设备类型枚举**
+
+`DataMonitor.Core/Models/Protocol/DeviceType.cs` — 添加新枚举值：
+
+```csharp
+public enum DeviceType : byte
+{
+    GeneralSensor = 0x01,
+    TemperatureMonitor = 0x02,
+    PressureController = 0x03,
+    FlowMonitor = 0x04    // ← 新增
+}
+```
+
+**第2步：创建协议编解码类**
+
+`DataMonitor.Core/Protocols/FlowProtocol.cs` — 继承 `IProtocolCodec`，定义帧头 `0xDD 0x88` 和 CRC8 校验：
+
+```csharp
+public class FlowProtocol : IProtocolCodec
+{
+    public string Name => "流量监测协议 (DD88 + CRC8)";
+    public byte[] Header => [0xDD, 0x88];
+    public byte[] Tail => ProtocolConstants.Tail;  // 0x0D 0x0A 通用
+
+    public byte CalculateChecksum(byte[] data, int offset, int length)
+    {
+        byte crc = 0;
+        for (int i = offset; i < offset + length; i++)
+            crc = Crc8Table[data[i] ^ crc];
+        return crc;
+    }
+    // ... 其余接口方法见 IProtocolCodec 定义
+}
+```
+
+**第3步：注册端口扫描映射**
+
+`DataMonitor.Core/Services/DeviceDiscoverer.cs` — 添加新端口：
+
+```csharp
+private static readonly Dictionary<int, IProtocolCodec> PortProtocols = new()
+{
+    { 8888, new DefaultProtocol() },
+    { 8889, new TemperatureProtocol() },
+    { 8890, new PressureProtocol() },
+    { 8891, new FlowProtocol() }    // ← 新增
+};
+
+private static readonly int[] ScanPorts = [8888, 8889, 8890, 8891];
+```
+
+**第4步：定义设备信息（通道 + 参数）**
+
+`DataMonitor.Core/Models/DeviceInfo.cs` — 在 `GetDataChannels()` 和 `GetDefaultParameters()` 的 switch 中添加：
+
+```csharp
+// GetDataChannels 中添加：
+DeviceType.FlowMonitor => new()
+{
+    new("流量", "L/min", "FlowRate"),
+    new("状态", "", "StatusText"),
+},
+
+// GetDefaultParameters 中添加：
+DeviceType.FlowMonitor => FlowMonitorParameters(),
+
+// 新增参数工厂方法：
+private static List<DeviceParameter> FlowMonitorParameters()
+{
+    return new()
+    {
+        new() { Id = ParameterId.FlowRateLimit,  Name = "流量限制", Unit = "L/min", Description = "流量上限" },
+        new() { Id = ParameterId.SampleInterval, Name = "采样间隔", Unit = "ms",    Description = "上报间隔" },
+    };
+}
+```
+
+**第5步：创建上位机插件**
+
+`DataMonitor/Protocols/FlowMonitorPlugin.cs`（可仿照 `DefaultDevicePlugin.cs`，使用 `FlowProtocol`）：
+
+```csharp
+public class FlowMonitorPlugin : IDevicePlugin
+{
+    private readonly FlowProtocol _proto = new();
+    // ... TCP 连接、收发逻辑与 DefaultDevicePlugin 完全相同
+}
+```
+
+**第6步：下位机模拟器支持**
+
+`DataMonitor.LowerComputer/LowerComputerSimulator.cs` — 构造函数中添加分支：
+
+```csharp
+// _proto switch 中添加：
+DeviceType.FlowMonitor => new FlowProtocol(),
+
+// _parameters switch 中添加：
+DeviceType.FlowMonitor => new()
+{
+    { ParameterId.FlowRateLimit, 100 },
+    { ParameterId.SampleInterval, 800 }
+},
+```
+
+**第7步：命令行参数解析**
+
+`Program.Main` 中添加类型映射：
+
+```csharp
+type = parts[1].ToLower() switch
+{
+    "temp" => DeviceType.TemperatureMonitor,
+    "pressure" => DeviceType.PressureController,
+    "flow" => DeviceType.FlowMonitor,    // ← 新增
+    _ => DeviceType.GeneralSensor
+};
+```
+
+**第8步：验证**
+
+```bash
+# 启动新设备模拟器
+dotnet run --no-build --project DataMonitor.LowerComputer -- 8891:flow
+
+# 另开终端启动上位机
+dotnet run --no-build --project DataMonitor
+```
+
+点击"扫描设备" → 应出现"流量监测仪"@ 127.0.0.1:8891。
+
+**修改文件汇总：**
+
+| 文件 | 修改内容 |
+|------|----------|
+| `DeviceType.cs` | 新增枚举值 |
+| `FlowProtocol.cs`（新建） | 新协议类 |
+| `DeviceDiscoverer.cs` | 端口映射 + 扫描列表 |
+| `DeviceInfo.cs` | 通道定义 + 参数工厂 |
+| `FlowMonitorPlugin.cs`（新建） | 上位机插件 |
+| `LowerComputerSimulator.cs` | 协议/参数分支 |
+| `Program.cs` | CLI 类型映射 |
+
 ---
 
 ## 八、调试方法
