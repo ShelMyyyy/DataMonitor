@@ -163,29 +163,45 @@ public class Program
     {
         var specs = new List<(int port, DeviceType type)>();
         if (args.Length == 0)
+        {
             specs.Add((8888, DeviceType.GeneralSensor));
+        }
         else
+        {
             foreach (var a in args)
             {
                 var parts = a.Split(':');
                 int port = int.TryParse(parts[0], out int p) ? p : 8888;
                 DeviceType type = DeviceType.GeneralSensor;
                 if (parts.Length > 1)
-                    type = parts[1].ToLower() switch { "temp"=>DeviceType.TemperatureMonitor, "pressure"=>DeviceType.PressureController, _=>DeviceType.GeneralSensor };
+                {
+                    type = parts[1].ToLower() switch { "temp" => DeviceType.TemperatureMonitor, "pressure" => DeviceType.PressureController, _ => DeviceType.GeneralSensor };
+                }
                 specs.Add((port, type));
             }
+        }
 
         Console.WriteLine("=========================================");
         Console.WriteLine("       下位机模拟器 - 多实例启动");
         Console.WriteLine("=========================================");
-        foreach (var (p, t) in specs) Console.WriteLine($"  {p} -> {new DeviceInfo{Type=t}.Name}");
+        foreach (var (p, t) in specs)
+        {
+            Console.WriteLine($"  {p} -> {new DeviceInfo { Type = t }.Name}");
+        }
         Console.WriteLine("  Ctrl+C 停止全部");
         Console.WriteLine("=========================================");
 
         var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); Console.WriteLine("\n停止中..."); };
         var tasks = specs.Select(s => new LowerComputerSimulator(s.type).StartAsync(s.port, cts.Token));
-        try { await Task.WhenAll(tasks); } catch (Exception ex) { Console.WriteLine($"错误: {ex.Message}"); }
+        try 
+        { 
+            await Task.WhenAll(tasks);
+        } 
+        catch (Exception ex)
+        { 
+            Console.WriteLine($"错误: {ex.Message}");
+        }
         Console.WriteLine("按任意键退出..."); Console.ReadKey();
     }
 }

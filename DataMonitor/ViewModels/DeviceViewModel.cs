@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -100,12 +101,15 @@ public partial class DeviceViewModel : ObservableObject
     public void Log(string msg) => _globalLog($"[{DeviceName}] {msg}");
 
     /// <summary>
-    /// 遥测数据到达回调 — 将数据分发到对应通道进行图表更新
+    /// 遥测数据到达回调 — 将数据分发到对应通道，各通道按自身阈值独立判断告警。
+    /// 当任意非状态通道超过其阈值时，状态通道强制显示为"告警"。
     /// </summary>
     private void OnTelemetry(TelemetryData data)
     {
         StatusText = data.StatusText;
-        foreach (var ch in Channels)
+
+        // 先更新所有非状态通道
+        foreach (var ch in Channels.Where(c => c.PropertyName != "StatusText"))
         {
             double val = ch.PropertyName switch
             {
@@ -113,10 +117,18 @@ public partial class DeviceViewModel : ObservableObject
                 "Humidity" => data.Humidity,
                 "Pressure" => data.Pressure,
                 "FlowRate" => data.FlowRate,
-                "StatusText" => data.Status,
                 _ => 0
             };
             ch.AddDataPoint(val);
+        }
+
+        // 检查是否有任意非状态通道超阈值，强制状态为"告警"
+        var statusChannel = Channels.FirstOrDefault(c => c.PropertyName == "StatusText");
+        if (statusChannel != null)
+        {
+            bool anyAlarm = Channels.Any(c => c.PropertyName != "StatusText" && c.IsCurrentPointAlarm);
+            byte effectiveStatus = anyAlarm ? Math.Max(data.Status, (byte)1) : data.Status;
+            statusChannel.AddDataPoint(effectiveStatus);
         }
     }
 

@@ -61,7 +61,6 @@ public class DeviceInfo
             new() { Id = ParameterId.MaxPressure,       Name = "最大压力", Unit = "kPa", Description = "最大允许压力" },
             new() { Id = ParameterId.FlowRateLimit,      Name = "流量限制", Unit = "L/min", Description = "流量上限阈值" },
             new() { Id = ParameterId.SampleInterval,     Name = "采样间隔", Unit = "ms", Description = "采样间隔" },
-            new() { Id = ParameterId.AlarmThreshold,     Name = "报警阈值", Unit = "°C", Description = "温度报警阈值" }
         };
     }
 
@@ -70,7 +69,6 @@ public class DeviceInfo
         return new List<DeviceParameter>
         {
             new() { Id = ParameterId.TargetTemperature, Name = "目标温度", Unit = "°C", Description = "目标控制温度" },
-            new() { Id = ParameterId.AlarmThreshold,     Name = "报警阈值", Unit = "°C", Description = "温度超限报警" },
             new() { Id = ParameterId.SampleInterval,     Name = "采样间隔", Unit = "ms", Description = "采样上报间隔" }
         };
     }
@@ -92,38 +90,53 @@ public class DeviceInfo
         {
             DeviceType.GeneralSensor => new()
             {
-                new("温度", "°C", "Temperature"),
-                new("湿度", "%", "Humidity"),
-                new("压力", "kPa", "Pressure"),
-                new("流量", "L/min", "FlowRate"),
-                new("状态", "", "StatusText"),
+                new("温度", "°C", "Temperature", alarmThreshold: 30.0),
+                new("湿度", "%",  "Humidity",    alarmThreshold: 80.0),
+                new("压力", "kPa", "Pressure",   alarmThreshold: 100.0),
+                new("流量", "L/min", "FlowRate", alarmThreshold: 50.0),
+                new("状态", "",   "StatusText"),
             },
             DeviceType.TemperatureMonitor => new()
             {
-                new("温度", "°C", "Temperature"),
-                new("状态", "", "StatusText"),
+                new("温度", "°C", "Temperature", alarmThreshold: 30.0),
+                new("状态", "",   "StatusText"),
             },
             DeviceType.PressureController => new()
             {
-                new("压力", "kPa", "Pressure"),
-                new("流量", "L/min", "FlowRate"),
-                new("状态", "", "StatusText"),
+                new("压力", "kPa",   "Pressure", alarmThreshold: 100.0),
+                new("流量", "L/min", "FlowRate", alarmThreshold: 50.0),
+                new("状态", "",      "StatusText"),
             },
             _ => new()
             {
-                new("温度", "°C", "Temperature"),
-                new("状态", "", "StatusText"),
+                new("温度", "°C", "Temperature", alarmThreshold: 30.0),
+                new("状态", "",   "StatusText"),
             }
         };
     }
 }
 
 /// <summary>遥测数据通道定义（支持UI绑定通知）</summary>
-public class DataChannelDef(string label, string unit, string propertyName) : System.ComponentModel.INotifyPropertyChanged
+public class DataChannelDef(string label, string unit, string propertyName, double? alarmThreshold = null) : System.ComponentModel.INotifyPropertyChanged
 {
     public string Label { get; } = label;
     public string Unit { get; } = unit;
     public string PropertyName { get; } = propertyName;
+
+    private double? _alarmThreshold = alarmThreshold;
+    /// <summary>告警阈值（nullable；数值通道超过此值即告警，StatusText 通道特殊处理）</summary>
+    public double? AlarmThreshold
+    {
+        get => _alarmThreshold;
+        set
+        {
+            if (_alarmThreshold != value)
+            {
+                _alarmThreshold = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(AlarmThreshold)));
+            }
+        }
+    }
 
     private string _display = "--";
     public string DisplayValue
